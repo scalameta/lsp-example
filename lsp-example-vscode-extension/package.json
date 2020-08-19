@@ -1,0 +1,443 @@
+{
+  "name": "metals",
+  "displayName": "Example",
+  "description": "Examplep language server",
+  "keywords": [
+    "lsp",
+    "language server",
+    "ide"
+  ],
+  "version": "0.1.0",
+  "publisher": "scalameta",
+  "contributors": [
+    {
+      "name": "Ólafur Páll Geirsson",
+      "url": "https://github.com/olafurpg"
+    }
+  ],
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/scalameta/lsp-example/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/scalameta/lsp-example.git"
+  },
+  "homepage": "https://github.com/scalameta/lsp-example.git",
+  "engines": {
+    "vscode": "^1.43.0"
+  },
+  "icon": "images/logo.png",
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onCommand:metals.new-scala-project",
+    "onDebugResolve:scala",
+    "onLanguage:scala",
+    "workspaceContains:build.sbt",
+    "workspaceContains:build.sc",
+    "workspaceContains:project/build.properties",
+    "workspaceContains:src/main/scala",
+    "workspaceContains:*/src/main/scala",
+    "workspaceContains:*/*/src/main/scala"
+  ],
+  "contributes": {
+    "configurationDefaults": {
+      "[scala]": {
+        "editor.suggestSelection": "first",
+        "editor.formatOnPaste": true,
+        "editor.formatOnType": true
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "metals-explorer",
+          "title": "Metals",
+          "icon": "images/scalameta.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "metalsPackages",
+        "contents": "No Scala project found.\n[New Scala project](command:metals.new-scala-project)",
+        "when": "workbenchState != empty"
+      }
+    ],
+    "views": {
+      "metals-explorer": [
+        {
+          "id": "metalsPackages",
+          "name": "Packages"
+        },
+        {
+          "id": "metalsBuild",
+          "name": "Build commands"
+        },
+        {
+          "id": "metalsCompile",
+          "name": "Ongoing compilations"
+        },
+        {
+          "id": "metalsHelp",
+          "name": "Help and feedback"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Metals",
+      "properties": {
+        "metals.serverVersion": {
+          "type": "string",
+          "default": "0.9.2",
+          "markdownDescription": "The version of the Metals server artifact. Requires reloading the window.\n\n**Change only if you know what you're doing**"
+        },
+        "metals.serverProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Optional list of properties to pass along to the Metals server. By default, the environment variable `JAVA_OPTS` and `.jvmopts` file are respected. Each property needs to be a separate item.\n\nExample: `-Dhttps.proxyHost=…`, `-Dhttps.proxyPort=…` or `-Dmetals.statistics=all`"
+        },
+        "metals.ammoniteJvmProperties": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Optional list of JVM properties to pass along to the Ammonite server. Each property needs to be a separate item.\n\nExample: `-Xmx1G` or `-Xms100M`"
+        },
+        "metals.javaHome": {
+          "type": "string",
+          "markdownDescription": "Optional path to the Java home directory. Requires reloading the window.\n\nDefaults to the most recent Java version between 8 and 11 (inclusive) computed by the `locate-java-home` npm package."
+        },
+        "metals.sbtScript": {
+          "type": "string",
+          "markdownDescription": "Optional absolute path to an `sbt` executable to use for running `sbt bloopInstall`.\n\nBy default, Metals uses `java -jar sbt-launch.jar` with an embedded launcher while respecting `.jvmopts` and `.sbtopts`.\n\nUpdate this setting if your `sbt` script requires more customizations like using environment variables."
+        },
+        "metals.millScript": {
+          "type": "string",
+          "markdownDescription": "Optional absolute path to a `mill` executable to use for running `mill mill.contrib.Bloop/install`.\n\nBy default, Metals uses an embedded `millw` script while respecting `.mill-version` file.\n\nUpdate this setting if your `mill` script requires more customizations."
+        },
+        "metals.mavenScript": {
+          "type": "string",
+          "markdownDescription": "Optional absolute path to a `mvn` executable to use for running `mvn ch.epfl.scala:maven-bloop_2.10:<bloop_version>:bloopInstall`.\n\nBy default, Metals uses an embedded `mvnw` script.\n\nUpdate this setting if your `mvn` script requires more customizations."
+        },
+        "metals.gradleScript": {
+          "type": "string",
+          "markdownDescription": "Optional absolute path to a `gradle` executable to use for running `gradle bloopInstall`.\n\nBy default, Metals uses an embedded `gradlew` script.\n\nUpdate this setting if your `gradle` script requires more customizations."
+        },
+        "metals.scalafmtConfigPath": {
+          "type": "string",
+          "markdownDescription": "Optional custom path to the .scalafmt.conf file.\n\nShould be relative to the workspace root directory and use forward slashes `/` for file separators (even on Windows)."
+        },
+        "metals.bloopVersion": {
+          "type": "string",
+          "markdownDescription": "This version will be used for the Bloop build tool plugin, for any supported build tool,while importing in Metals as well as for running the embedded server"
+        },
+        "metals.bloopSbtAlreadyInstalled": {
+          "type": "boolean",
+          "markdownDescription": "If true, Metals will not generate a `project/metals.sbt` file under the assumption that sbt-bloop is already manually installed in the sbt build. Build import will fail with a 'not valid command bloopInstall' error in case Bloop is not manually installed in the build when using this option."
+        },
+        "metals.customRepositories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Optional list of custom resolvers passed to Coursier when fetching metals dependencies.\n\nFor documentation on accepted values see the [Coursier documentation](https://get-coursier.io/docs/other-repositories).\n\nThe extension will pass these to Coursier using the COURSIER_REPOSITORIES environment variable after joining the custom repositories with a pipe character (|)."
+        },
+        "metals.superMethodLensesEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable/disable goto super method code lens."
+        },
+        "metals.enableStripMarginOnTypeFormatting": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When enabled, if you press the return key from the first line of a multiline string containing a pipe, it will automatically add `.stripMargin`."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "metals.reveal-active-file",
+        "category": "Metals",
+        "title": "Reveal Active File in Side Bar",
+        "icon": {
+          "light": "icons/focus-light.svg",
+          "dark": "icons/focus-dark.svg"
+        }
+      },
+      {
+        "command": "metals.restartServer",
+        "category": "Metals",
+        "title": "Restart server"
+      },
+      {
+        "command": "metals.build-restart",
+        "category": "Metals",
+        "title": "Restart Bloop server"
+      },
+      {
+        "command": "metals.build-import",
+        "category": "Metals",
+        "title": "Import build"
+      },
+      {
+        "command": "metals.build-connect",
+        "category": "Metals",
+        "title": "Connect to build server"
+      },
+      {
+        "command": "metals.sources-scan",
+        "category": "Metals",
+        "title": "Rescan sources"
+      },
+      {
+        "command": "metals.compile-cascade",
+        "category": "Metals",
+        "title": "Cascade compile"
+      },
+      {
+        "command": "metals.compile-clean",
+        "category": "Metals",
+        "title": "Recompile workspace"
+      },
+      {
+        "command": "metals.compile-cancel",
+        "category": "Metals",
+        "title": "Cancel compilation"
+      },
+      {
+        "command": "metals.doctor-run",
+        "category": "Metals",
+        "title": "Run doctor"
+      },
+      {
+        "command": "metals.new-scala-project",
+        "category": "Metals",
+        "title": "New Scala Project"
+      },
+      {
+        "command": "metals.new-scala-file",
+        "category": "Metals",
+        "title": "New Scala File..."
+      },
+      {
+        "command": "metals.super-method-hierarchy",
+        "category": "Metals",
+        "title": "Reveal super method hierachy"
+      },
+      {
+        "command": "metals.reset-choice",
+        "category": "Metals",
+        "title": "Reset Choice"
+      },
+      {
+        "command": "metals.go-to-super-method",
+        "category": "Metals",
+        "title": "Go to super method"
+      },
+      {
+        "command": "metals.ammonite-start",
+        "category": "Metals",
+        "title": "Start Ammonite build server"
+      },
+      {
+        "command": "metals.ammonite-stop",
+        "category": "Metals",
+        "title": "Stop Ammonite build server"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "metals.reveal-active-file",
+          "group": "navigation",
+          "when": "view == metalsPackages"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "metals.reveal-active-file",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.restartServer",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.build-import",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.build-restart",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.build-connect",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.sources-scan",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.compile-cascade",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.compile-clean",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.compile-cancel",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.doctor-run",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.new-scala-file",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.new-scala-project",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.super-method-hierarchy",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.go-to-super-method",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.reset-choice",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.ammonite-start",
+          "when": "metals:enabled"
+        },
+        {
+          "command": "metals.ammonite-stop",
+          "when": "metals:enabled"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "metals.new-scala-file",
+          "when": "metals:enabled",
+          "group": "navigation@4"
+        }
+      ]
+    },
+    "breakpoints": [
+      {
+        "language": "scala"
+      },
+      {
+        "language": "java"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "scala",
+        "label": "Scala Debugger",
+        "languages": [
+          "scala"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "properties": {
+              "mainClass": {
+                "type": "string",
+                "description": "Name of the main class to run"
+              },
+              "testClass": {
+                "type": "string",
+                "description": "Name of the test class to run"
+              },
+              "buildTarget": {
+                "type": "string",
+                "description": "Name of the build target of the class to run"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Arguments passed to the class to run",
+                "default": []
+              },
+              "jvmOptions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": []
+              }
+            }
+          }
+        },
+        "configurationSnippets": [
+          {
+            "label": "Scala: Run main class",
+            "description": "A new configuration for running a debug session of a main class",
+            "body": {
+              "type": "scala",
+              "request": "launch",
+              "name": "Untitled",
+              "mainClass": "???",
+              "args": [],
+              "jvmOptions": []
+            }
+          },
+          {
+            "label": "Scala: Run test class",
+            "description": "A new configuration for running a debug session of a test class",
+            "body": {
+              "type": "scala",
+              "request": "launch",
+              "name": "Untitled",
+              "testClass": "???"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "main": "./out/extension",
+  "scripts": {
+    "vscode:prepublish": "yarn compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "yarn compile",
+    "build": "vsce package --yarn",
+    "vscode:publish": "vsce publish --yarn",
+    "ovsx:publish": "ovsx publish",
+    "format": "prettier --write '**/*.{ts,js,json,yml}'",
+    "format-check": "prettier --check '**/*.{ts,js,json,yml}'"
+  },
+  "devDependencies": {
+    "@types/node": "14.6.0",
+    "@types/shell-quote": "1.7.0",
+    "@types/vscode": "1.43.0",
+    "prettier": "2.0.5",
+    "typescript": "3.9.7",
+    "vsce": "1.78.0",
+    "ovsx": "0.1.0-next.9321255"
+  },
+  "dependencies": {
+    "metals-languageclient": "0.3.0",
+    "promisify-child-process": "4.1.1",
+    "vscode-languageclient": "6.1.3"
+  },
+  "extensionDependencies": [
+    "scala-lang.scala"
+  ]
+}
