@@ -1,6 +1,5 @@
 "use strict";
 
-import * as path from "path";
 import { ChildProcessPromise } from "promisify-child-process";
 import {
   workspace,
@@ -11,7 +10,6 @@ import {
   EventEmitter,
   StatusBarAlignment,
   ProgressLocation,
-  IndentAction,
   languages,
   WebviewPanel,
   ViewColumn,
@@ -22,8 +20,6 @@ import {
   DecorationOptions,
   Position,
   TextEditorDecorationType,
-  TextEditor,
-  TextEditorEdit,
   ConfigurationTarget,
 } from "vscode";
 import {
@@ -32,26 +28,19 @@ import {
   RevealOutputChannelOn,
   ExecuteCommandRequest,
   Location,
-  TextDocumentPositionParams,
   TextDocument,
 } from "vscode-languageclient";
 import { LazyProgress } from "./lazy-progress";
-import * as fs from "fs";
 import {
   getJavaHome,
   restartServer,
   checkDottyIde,
   getJavaConfig,
-  fetchMetals,
   JavaConfig,
-  getServerOptions,
   downloadProgress,
   installJava,
   ClientCommands,
-  MetalsTreeViews,
-  MetalsTreeViewReveal,
   MetalsInitializationOptions,
-  ServerCommands,
   MetalsSlowTask,
   ExecuteClientCommand,
   MetalsOpenWindowParams,
@@ -62,17 +51,17 @@ import {
   MetalsQuickPick,
 } from "metals-languageclient";
 import * as metalsLanguageClient from "metals-languageclient";
-import { startTreeView } from "./treeview";
 import * as scalaDebugger from "./scalaDebugger";
 import {
   DecorationTypeDidChange,
   DecorationsRangesDidChange,
 } from "./decoration-protocol";
+import { fetchExample } from "./fetchExample";
+import { getExampleServerOptions } from "./getExampleServerOptions";
 
 const outputChannel = window.createOutputChannel("Example");
 const openSettingsAction = "Open settings";
 const openSettingsCommand = "workbench.action.openSettings";
-let treeViews: MetalsTreeViews | undefined;
 let currentClient: LanguageClient | undefined;
 
 let decorationType: TextEditorDecorationType = window.createTextEditorDecorationType(
@@ -82,7 +71,7 @@ let decorationType: TextEditorDecorationType = window.createTextEditorDecoration
   }
 );
 
-const config = workspace.getConfiguration("metals");
+const config = workspace.getConfiguration("example");
 
 export async function activate(context: ExtensionContext) {
   detectLaunchConfigurationChanges();
@@ -205,7 +194,7 @@ function fetchAndLaunchMetals(context: ExtensionContext, javaHome: string) {
     extensionPath: context.extensionPath,
   });
 
-  const fetchProcess = fetchMetals({
+  const fetchProcess = fetchExample({
     serverVersion,
     serverProperties,
     javaConfig,
@@ -269,10 +258,7 @@ function launchMetals(
   serverProperties: string[],
   javaConfig: JavaConfig
 ) {
-  // Make editing Scala docstrings slightly nicer.
-  enableScaladocIndentation();
-
-  const serverOptions = getServerOptions({
+  const serverOptions = getExampleServerOptions({
     metalsClasspath,
     serverProperties,
     javaConfig,
@@ -302,9 +288,9 @@ function launchMetals(
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "scala" }],
+    documentSelector: [{ scheme: "file", language: "plaintext" }],
     synchronize: {
-      configurationSection: "metals",
+      configurationSection: "example",
     },
     revealOutputChannelOn: RevealOutputChannelOn.Never,
     outputChannel: outputChannel,
@@ -312,8 +298,8 @@ function launchMetals(
   };
 
   const client = new LanguageClient(
-    "metals",
-    "Metals",
+    "example",
+    "Example",
     serverOptions,
     clientOptions
   );
@@ -323,21 +309,8 @@ function launchMetals(
     context.subscriptions.push(commands.registerCommand(command, callback));
   }
 
-  function registerTextEditorCommand(
-    command: string,
-    callback: (
-      textEditor: TextEditor,
-      edit: TextEditorEdit,
-      ...args: any[]
-    ) => any
-  ) {
-    context.subscriptions.push(
-      commands.registerTextEditorCommand(command, callback)
-    );
-  }
-
   registerCommand(
-    "metals.restartServer",
+    "example.restartServer",
     restartServer(
       // NOTE(gabro): this is due to mismatching versions of vscode-languageserver-protocol
       // which are not trivial to fix, currently
@@ -354,8 +327,8 @@ function launchMetals(
     function getDoctorPanel(isReload: boolean): WebviewPanel {
       if (!doctor) {
         doctor = window.createWebviewPanel(
-          "metals-doctor",
-          "Metals Doctor",
+          "example-doctor",
+          "Example Doctor",
           ViewColumn.Active,
           { enableCommandUris: true }
         );
@@ -368,22 +341,6 @@ function launchMetals(
       }
       return doctor;
     }
-    [
-      ServerCommands.BuildImport,
-      ServerCommands.BuildRestart,
-      ServerCommands.BuildConnect,
-      ServerCommands.SourcesScan,
-      ServerCommands.DoctorRun,
-      ServerCommands.CascadeCompile,
-      ServerCommands.CleanCompile,
-      ServerCommands.CancelCompilation,
-      ServerCommands.AmmoniteStart,
-      ServerCommands.AmmoniteStop,
-    ].forEach((command) => {
-      registerCommand("metals." + command, async () =>
-        client.sendRequest(ExecuteCommandRequest.type, { command: command })
-      );
-    });
 
     let channelOpen = false;
 
@@ -512,104 +469,9 @@ function launchMetals(
       }
     });
 
-    registerTextEditorCommand(
-      `metals.${ServerCommands.GotoSuperMethod}`,
-      (editor, _edit, _args) => {
-        client.sendRequest(ExecuteCommandRequest.type, {
-          command: ServerCommands.GotoSuperMethod,
-          arguments: [
-            {
-              document: editor.document.uri.toString(true),
-              position: editor.selection.start,
-            },
-          ],
-        });
-      }
-    );
-
-    registerTextEditorCommand(
-      `metals.${ServerCommands.SuperMethodHierarchy}`,
-      (editor, _edit, _args) => {
-        client.sendRequest(ExecuteCommandRequest.type, {
-          command: ServerCommands.SuperMethodHierarchy,
-          arguments: [
-            {
-              document: editor.document.uri.toString(true),
-              position: editor.selection.start,
-            },
-          ],
-        });
-      }
-    );
-
-    registerCommand(`metals.${ServerCommands.ResetChoice}`, (args = []) => {
-      client.sendRequest(ExecuteCommandRequest.type, {
-        command: ServerCommands.ResetChoice,
-        arguments: args,
-      });
-    });
-
-    registerCommand(`metals.${ServerCommands.Goto}`, (args) => {
-      client.sendRequest(ExecuteCommandRequest.type, {
-        command: ServerCommands.Goto,
-        arguments: args,
-      });
-    });
-
-    registerCommand("metals.reveal-active-file", () => {
-      if (treeViews) {
-        const editor = window.visibleTextEditors.find((e) =>
-          isSupportedLanguage(e.document.languageId)
-        );
-        if (editor) {
-          const pos = editor.selection.start;
-          const params: TextDocumentPositionParams = {
-            textDocument: { uri: editor.document.uri.toString() },
-            position: { line: pos.line, character: pos.character },
-          };
-          return window.withProgress(
-            {
-              location: ProgressLocation.Window,
-              title: "Example: Reveal Active File in Side Bar",
-            },
-            (progress) => {
-              return client
-                .sendRequest(MetalsTreeViewReveal.type, params)
-                .then((result) => {
-                  progress.report({ increment: 100 });
-                  if (treeViews) {
-                    treeViews.reveal(result);
-                  }
-                });
-            }
-          );
-        }
-      } else {
-        window.showErrorMessage(
-          "This version of Metals does not support tree views."
-        );
-      }
-    });
-
     registerCommand(ClientCommands.EchoCommand, (arg: string) => {
       client.sendRequest(ExecuteCommandRequest.type, {
         command: arg,
-      });
-    });
-
-    registerCommand(
-      `metals.${ServerCommands.NewScalaFile}`,
-      async (directory: Uri) => {
-        return client.sendRequest(ExecuteCommandRequest.type, {
-          command: ServerCommands.NewScalaFile,
-          arguments: [directory?.toString()],
-        });
-      }
-    );
-
-    registerCommand(`metals.${ServerCommands.NewScalaProject}`, async () => {
-      return client.sendRequest(ExecuteCommandRequest.type, {
-        command: ServerCommands.NewScalaProject,
       });
     });
 
@@ -688,16 +550,6 @@ function launchMetals(
         );
       });
     });
-    // NOTE(olafur): `require("./package.json")` should work in theory but it
-    // seems to read a stale version of package.json when I try it.
-    const packageJson = JSON.parse(
-      fs.readFileSync(path.join(context.extensionPath, "package.json"), "utf8")
-    );
-    const viewIds = packageJson.contributes.views["metals-explorer"].map(
-      (view: { id: string }) => view.id
-    );
-    treeViews = startTreeView(client, outputChannel, context, viewIds);
-    context.subscriptions.concat(treeViews.disposables);
     scalaDebugger
       .initialize(outputChannel)
       .forEach((disposable) => context.subscriptions.push(disposable));
@@ -772,53 +624,6 @@ function readableSeconds(totalSeconds: number): string {
   }
 }
 
-function enableScaladocIndentation() {
-  // Adapted from:
-  // https://github.com/Microsoft/vscode/blob/9d611d4dfd5a4a101b5201b8c9e21af97f06e7a7/extensions/typescript/src/typescriptMain.ts#L186
-  languages.setLanguageConfiguration("scala", {
-    indentationRules: {
-      // ^(.*\*/)?\s*\}.*$
-      decreaseIndentPattern: /^(.*\*\/)?\s*\}.*$/,
-      // ^.*\{[^}"']*$
-      increaseIndentPattern: /^.*\{[^}"']*$/,
-    },
-    wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g,
-    onEnterRules: [
-      {
-        // e.g. /** | */
-        beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
-        afterText: /^\s*\*\/$/,
-        action: { indentAction: IndentAction.IndentOutdent, appendText: " * " },
-      },
-      {
-        // e.g. /** ...|
-        beforeText: /^\s*\/\*\*(?!\/)([^\*]|\*(?!\/))*$/,
-        action: { indentAction: IndentAction.None, appendText: " * " },
-      },
-      {
-        // e.g.  * ...| Javadoc style
-        beforeText: /^(\t|(\ \ ))*\ \*(\ ([^\*]|\*(?!\/))*)?$/,
-        action: { indentAction: IndentAction.None, appendText: "* " },
-      },
-      {
-        // e.g.  * ...| Scaladoc style
-        beforeText: /^(\t|(\ \ ))*\*(\ ([^\*]|\*(?!\/))*)?$/,
-        action: { indentAction: IndentAction.None, appendText: "* " },
-      },
-      {
-        // e.g.  */|
-        beforeText: /^(\t|(\ \ ))*\ \*\/\s*$/,
-        action: { indentAction: IndentAction.None, removeText: 1 },
-      },
-      {
-        // e.g.  *-----*/|
-        beforeText: /^(\t|(\ \ ))*\ \*[^/]*\*\/\s*$/,
-        action: { indentAction: IndentAction.None, removeText: 1 },
-      },
-    ],
-  });
-}
-
 function detectLaunchConfigurationChanges() {
   metalsLanguageClient.detectLaunchConfigurationChanges(
     workspace,
@@ -834,7 +639,7 @@ function detectLaunchConfigurationChanges() {
 }
 
 function checkServerVersion() {
-  const config = workspace.getConfiguration("metals");
+  const config = workspace.getConfiguration("example");
   metalsLanguageClient.checkServerVersion({
     config,
     updateConfig: ({
@@ -872,11 +677,13 @@ function checkServerVersion() {
 
 function isSupportedLanguage(languageId: TextDocument["languageId"]): boolean {
   switch (languageId) {
+    case "example":
     case "scala":
     case "sc":
     case "java":
       return true;
     default:
+      outputChannel.appendLine("is supported: " + languageId);
       return false;
   }
 }

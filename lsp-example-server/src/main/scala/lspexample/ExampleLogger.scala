@@ -2,14 +2,14 @@ package lspexample
 
 import java.io.PrintStream
 import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 
 import scribe._
 import scribe.format._
 import scribe.modify.LogModifier
 import scribe.writer.FileWriter
-import java.nio.file.Path
-import java.nio.file.Paths
 
 object ExampleLogger {
 

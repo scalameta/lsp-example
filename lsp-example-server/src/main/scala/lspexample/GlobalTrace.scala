@@ -2,22 +2,22 @@ package lspexample
 
 import java.io.PrintWriter
 import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 
 import scala.util.control.NonFatal
 
-import java.nio.file.Path
-import java.nio.file.Paths
 import dev.dirs.ProjectDirectories
 
 /**
-  * Manages JSON-RPC tracing of incoming/outgoing messages via BSP and LSP.
-  */
+ * Manages JSON-RPC tracing of incoming/outgoing messages via BSP and LSP.
+ */
 object GlobalTrace {
 
   /**
-    * Returns a printer to trace JSON messages if the user opts into it.
-    */
+   * Returns a printer to trace JSON messages if the user opts into it.
+   */
   def setup(protocolName: String): PrintWriter = {
     ExampleLogger.redirectSystemOut(globalLog)
     setupTracePrinter(protocolName)
@@ -63,12 +63,12 @@ object GlobalTrace {
       case NonFatal(_) =>
         // jvm-directories can fail for less common OS versions: https://github.com/soc/directories-jvm/issues/17
         // Fall back to the working directory instead of crashing the entire server.
-        val cwd = workingDirectory.resolve(".metals")
+        val cwd = workingDirectory.resolve(".example")
         Files.createDirectories(cwd)
         cwd
     }
   }
 
-  def workingDirectory = Paths.get(System.getProperty("user.dir"))
+  def workingDirectory: Path = Paths.get(System.getProperty("user.dir"))
 
 }
